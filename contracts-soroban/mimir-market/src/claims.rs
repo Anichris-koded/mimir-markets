@@ -223,6 +223,29 @@ pub fn challenge_claim(
     Ok(())
 }
 
+
+pub fn transition_deadline(env: &Env, claim_id: u64) -> Result<(), Error> {
+    let mut claim = storage::get_claim(env, claim_id)?;
+    if claim.state != ClaimState::Open {
+        return Err(Error::ClaimNotOpen);
+    }
+    if env.ledger().timestamp() < claim.deadline {
+        return Err(Error::Timelocked);
+    }
+
+    claim.state = ClaimState::Cancelled;
+    let creator = claim.creator.clone();
+    let refund = claim.creator_stake;
+    storage::set_claim(env, claim_id, &claim);
+
+    // Cancellation is a refund: no fee.
+    let usdc = storage::usdc(env)?;
+    escrow::push_or_park(env, &usdc, &creator, refund);
+
+    events::ClaimCancelled { id: claim_id }.publish(env);
+    Ok(())
+}
+
 pub fn cancel_claim(env: &Env, claim_id: u64) -> Result<(), Error> {
     let mut claim = storage::get_claim(env, claim_id)?;
     claim.creator.require_auth();
