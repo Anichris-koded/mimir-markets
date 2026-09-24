@@ -490,6 +490,13 @@ export function consumedSettlementsCount(): number {
  * buyer double-spending its own proof against itself. Adding a distributed lock
  * to the request path to close that is not a trade worth making.
  *
+ * **Contrast with `lib/server/nonce-store.ts`**: the agent API uses caller-supplied
+ * nonce strings that do not have an inherent lifetime guarantee from the ledger, so
+ * it maintains a separate `agent_api_nonces` table with per-row `expires_at` TTLs.
+ * x402 transaction hashes are already single-use by the ledger (a transaction can
+ * only land once), which is why `payments_v2` is sufficient here and no extra nonce
+ * table is needed for this path.
+ *
  * With no DATABASE_URL only the in-process layer exists; that is the same
  * degradation the payments ledger itself already accepts.
  */

@@ -162,6 +162,13 @@ export const FEATURES = [
   "virtual_baskets",
   "agent_baskets",
   "fee_policy",
+  // Durable nonce persistence with per-row TTL expiry. ON by default — this is a
+  // security property (replay protection), not a product feature. The flag exists
+  // so an operator can see it in the feature list and confirm it is always on.
+  // Turning it OFF (MIMIR_FEATURE_NONCE_PERSISTENCE=0) reverts to the pre-migration
+  // in-process-only nonce store, which loses replay protection on restart and across
+  // instances. Only disable in an isolated local dev environment.
+  "nonce_persistence",
 ] as const;
 export type Feature = (typeof FEATURES)[number];
 
@@ -193,6 +200,9 @@ const FEATURE_DEFAULTS: Record<Feature, boolean> = {
   // independent audit yet (see docs/LAUNCH_GATE_STATUS.md). Turning this on before
   // that gate closes would charge fees against an escrow nobody has reviewed.
   fee_policy: false,
+  // Nonce persistence is a security invariant, not a product rollout. Default ON
+  // so no deploy step is needed; only disable in isolated local dev.
+  nonce_persistence: true,
 };
 
 function featureEnvKey(feature: Feature): string {

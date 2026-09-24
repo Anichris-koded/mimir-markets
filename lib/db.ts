@@ -297,8 +297,17 @@ const SCHEMA_STATEMENTS: SqlStatement[] = [
   { sql: `CREATE TABLE IF NOT EXISTS agent_api_nonces (
     nonce TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL,
-    consumed_at BIGINT NOT NULL
+    consumed_at BIGINT NOT NULL,
+    -- Epoch ms at which this nonce is no longer a live replay risk. Rows with
+    -- expires_at <= now() are garbage and pruned by pruneExpiredNonces().
+    expires_at BIGINT NOT NULL DEFAULT 0
   )` },
+  // Migrate pre-existing deployments that do not yet have expires_at.
+  // DEFAULT 0 means old rows are treated as already-expired, which is correct:
+  // a nonce consumed before this migration was applied cannot be replayed
+  // (the envelope skew window has long since closed) and should be pruned.
+  { sql: "ALTER TABLE agent_api_nonces ADD COLUMN IF NOT EXISTS expires_at BIGINT NOT NULL DEFAULT 0" },
+  { sql: "CREATE INDEX IF NOT EXISTS idx_agent_api_nonces_expires ON agent_api_nonces(expires_at)" },
   { sql: `CREATE TABLE IF NOT EXISTS agent_api_keys (
     key_id TEXT PRIMARY KEY,
     agent_id TEXT NOT NULL,
@@ -1533,15 +1542,45 @@ export async function getAgentRecord(agentId: string): Promise<AgentRecord | nul
   };
 }
 
-/** Returns false on replay. The nonce insert and audit idempotency are DB-enforced. */
-export async function consumeAgentNonce(agentId: string, nonce: string, at: number): Promise<boolean> {
+/**
+ * Returns false on replay. The nonce insert and audit idempotency are DB-enforced.
+ *
+ * `expiresAt` is the epoch-ms at which this nonce is no longer a live replay
+ * risk. Pass `consumedAt + NONCE_TTL_MS` (from `lib/server/nonce-store.ts`).
+ * Rows whose `expires_at <= now` are dead weight and pruned by
+ * `pruneExpiredNonces`.
+ */
+export async function consumeAgentNonce(
+  agentId: string,
+  nonce: string,
+  at: number,
+  expiresAt: number,
+): Promise<boolean> {
   const pool = await getDb();
   const result = await execute(pool, {
-    sql: `INSERT INTO agent_api_nonces(nonce, agent_id, consumed_at)
-      VALUES (?, ?, ?) ON CONFLICT(nonce) DO NOTHING RETURNING nonce`,
-    args: [nonce, agentId, at],
+    sql: `INSERT INTO agent_api_nonces(nonce, agent_id, consumed_at, expires_at)
+      VALUES (?, ?, ?, ?) ON CONFLICT(nonce) DO NOTHING RETURNING nonce`,
+    args: [nonce, agentId, at, expiresAt],
   });
   return result.rows.length === 1;
+}
+
+/**
+ * Delete nonce rows that are past their expiry.
+ *
+ * Safe to call at any time: rows with `expires_at <= now` are outside the
+ * envelope skew window and can never be presented as a valid replay again.
+ * Returns the number of rows deleted.
+ */
+export async function pruneExpiredNonces(now: number): Promise<number> {
+  const pool = await getDb();
+  // Use pool.query directly so we can read rowCount, which execute() does not
+  // surface (it returns { rows } only).
+  const result = await pool.query(
+    "DELETE FROM agent_api_nonces WHERE expires_at <= $1",
+    [now],
+  );
+  return result.rowCount ?? 0;
 }
 
 export async function insertAgentRequestAudit(row: {
