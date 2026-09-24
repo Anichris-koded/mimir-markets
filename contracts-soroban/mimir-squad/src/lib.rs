@@ -27,4 +27,6 @@ mod test_decimals;
 #[cfg(test)]
 mod test_lifecycle;
 #[cfg(test)]
+mod test_membership_cap;
+#[cfg(test)]
 mod test_payouts;
