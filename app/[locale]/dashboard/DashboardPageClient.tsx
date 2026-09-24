@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { useWallet } from "@/lib/wallet";
 import {
@@ -12,7 +12,6 @@ import {
   getVSUserWinAmount,
   type VSData,
 } from "@/lib/contract";
-import { formatDashboardSnapshotAge } from "@/lib/dashboardSnapshotAge";
 import type { VSCacheFreshness } from "@/lib/vs-freshness";
 import { mergePendingVS } from "@/lib/pending-vs";
 import { applyExploreFilters } from "@/lib/exploreFilters";
@@ -28,6 +27,8 @@ import AccountBalances from "@/components/wallet/AccountBalances";
 import DashboardKpiSkeletonRow from "@/components/dashboard/DashboardKpiSkeletonRow";
 import PortfolioPerformancePanel from "@/components/dashboard/PortfolioPerformancePanel";
 import DashboardVSFilterBar from "@/components/dashboard/DashboardVSFilterBar";
+import CacheFreshnessPill from "@/components/CacheFreshnessPill";
+import StaleIndexWarning from "@/components/StaleIndexWarning";
 import { useDashboardFilterUrlState } from "@/hooks/useDashboardFilterUrlState";
 import {
   DASHBOARD_CARD_HOVER,
@@ -69,8 +70,6 @@ export default function DashboardPageClient() {
   } = useDashboardFilterUrlState();
   const requestIdRef = useRef(0);
   const t = useTranslations("dashboard");
-  const tCache = useTranslations("cache");
-  const locale = useLocale();
 
   const loadDuels = useCallback(
     async ({
@@ -238,30 +237,7 @@ export default function DashboardPageClient() {
               </span>
             </div>
             {snapshotCache && !loadError ? (
-              <span
-                className={`max-w-[11rem] truncate font-mono text-[9px] font-semibold uppercase tracking-[0.14em] sm:max-w-none sm:text-[10px] ${
-                  snapshotCache.status === "live"
-                    ? "text-pv-emerald/90"
-                    : snapshotCache.status === "stale"
-                      ? "text-amber-400/90"
-                      : "text-pv-muted"
-                }`}
-                title={tCache("label")}
-                aria-label={t("listFreshnessAria")}
-              >
-                {tCache(snapshotCache.status)}
-                {snapshotCache.ageMs != null ? (
-                  <>
-                    {" "}
-                    · {formatDashboardSnapshotAge(snapshotCache.ageMs, locale)}
-                  </>
-                ) : (
-                  <>
-                    {" "}
-                    · {tCache("unknown")}
-                  </>
-                )}
-              </span>
+              <CacheFreshnessPill freshness={snapshotCache} />
             ) : null}
             <Link
               href="/vs/create"
@@ -272,6 +248,12 @@ export default function DashboardPageClient() {
           </div>
         </div>
       </AnimatedItem>
+
+      <StaleIndexWarning
+        freshness={snapshotCache}
+        refreshing={refreshing}
+        onRefresh={() => void loadDuels({ forceRefresh: true })}
+      />
 
       {loadError ? (
         <AnimatedItem>
