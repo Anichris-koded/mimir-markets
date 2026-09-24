@@ -780,7 +780,8 @@ mimir-markets/
 │   ├── mimir-market/                     # claim escrow, settlement, fee policy (Rust)
 │   └── mimir-squad/                      # two-sided squad pools (Rust)
 ├── deploy/
-│   └── deploy.ts                         # build + deploy + initialize on Stellar Testnet
+│   ├── deploy.ts                         # build + deploy + initialize on Stellar Testnet
+│   └── contract-artifacts.manifest.json  # Wasm digest pins for provenance checks
 ├── lib/
 │   ├── stellar.ts                        # network config, Soroban RPC + Horizon, explorer, getEvents
 │   ├── usdc.ts                           # USDC Stellar Asset Contract + 7dp helpers
@@ -810,6 +811,7 @@ mimir-markets/
 │   ├── create-agent-wallets.ts           # generate 12 keypairs (oracle + creator + council)
 │   ├── fund-agents.ts                    # fund agents from a master seed
 │   ├── verify-deployment.ts              # assert the deployed contracts match this repo
+│   ├── verify-artifact-provenance.ts     # fail-closed Wasm digest / manifest checks
 │   ├── onchain-smoke.ts                  # end-to-end on-chain smoke
 │   ├── x402-stellar-smoke.ts             # payment-scheme smoke against live Testnet
 │   ├── demo-full-cycle.ts                # full create -> challenge -> settle in 90s
@@ -866,6 +868,7 @@ npm run agents:balances
 
 ```bash
 npm run deploy:contract        # build, deploy and initialize
+npm run verify:artifacts       # fail-closed Wasm digest check (no secrets)
 npm run verify:deployment      # assert the deployment matches this repo's config
 npm run smoke:onchain          # end-to-end: create -> challenge -> read back
 ```
@@ -1014,6 +1017,7 @@ Every env var lives in `.env.example`. Quick reference:
 
 | Variable                          | Required by              | Notes                                                                              |
 | --------------------------------- | ------------------------ | ---------------------------------------------------------------------------------- |
+| `MIMIR_REQUIRE_ARTIFACT_PROVENANCE` | deploy / CI            | `1` forces release-mode Wasm digest pins before deploy |
 | `STELLAR_DEPLOYER_SECRET`         | deploy                   | Deploys and initializes the contracts; becomes the `owner` role                     |
 | `STELLAR_ORACLE_SECRET`           | oracle (worker)          | The oracle's local `S…` seed; its `G…` address is the contract's `oracle` role      |
 | `CREATOR_SECRET`                  | market-creator (worker)  | The market-creator's local `S…` seed                                                |
@@ -1075,6 +1079,7 @@ Every env var lives in `.env.example`. Quick reference:
 | `npm run agents:balances`                    | Print oracle + creator + council USDC and XLM balances                             |
 | `npm run deploy:contract`                    | Build, deploy and initialize the Soroban contracts on Stellar Testnet              |
 | `npm run verify:deployment`                  | Check the deployed contract ids, WASM hash and initialized config                  |
+| `npm run verify:artifacts`                   | Verify / pin Soroban Wasm digests against `deploy/contract-artifacts.manifest.json` (no secrets) |
 | `npm run verify:analytics`                   | Check the analytics gates the launch gate requires                                 |
 | `npm run smoke:onchain`                      | On-chain smoke test against the live deployment (`:full` adds resolve + squad)     |
 | `npm run smoke:x402` / `:http`               | Payment-scheme smoke against live Testnet / a full HTTP round trip                 |
