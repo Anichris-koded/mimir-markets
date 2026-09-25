@@ -88,10 +88,11 @@ pub enum Error {
     UnsupportedToken = 23,
     Overflow = 24,
     UnsupportedDecimals = 25,
+    ConservationViolation = 26,
     /// All [`MAX_SQUAD_MEMBERS`] slots across both sides have been filled.
     /// Distinct from [`Error::SideFull`], which fires when a single side reaches
     /// [`MAX_PARTICIPANTS_PER_SIDE`].  A new depositor is rejected once
     /// `participants_a + participants_b == MAX_SQUAD_MEMBERS` even if the target
     /// side still has room.
-    SquadFull = 26,
+    SquadFull = 27,
 }
