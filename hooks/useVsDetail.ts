@@ -50,6 +50,7 @@ import {
   isValidVsId,
   VS_DETAIL_POLL_INTERVAL_MS,
   VS_DETAIL_MAX_ATTEMPTS,
+  type VsDetailPhase,
 } from "@/lib/vs-detail-state";
 import type { VSData } from "@/lib/contract";
 import type { VSCacheFreshness } from "@/lib/vs-freshness";

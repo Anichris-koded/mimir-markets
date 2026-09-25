@@ -12,6 +12,17 @@ import {
   writeSbom,
 } from "../../scripts/generate-release-sbom.mjs";
 
+/** Shape of a CycloneDX component as emitted by generate-release-sbom.mjs */
+interface SbomComponent {
+  type: string;
+  "bom-ref": string;
+  name: string;
+  version: string;
+  purl: string;
+  scope: string;
+  hashes?: Array<{ alg: string; content: string }>;
+}
+
 const FIXTURES = join(process.cwd(), "tests", "fixtures", "release-sbom");
 
 test("positive: builds CycloneDX 1.5 SBOM from a valid lockfile fixture", () => {
@@ -27,16 +38,16 @@ test("positive: builds CycloneDX 1.5 SBOM from a valid lockfile fixture", () => 
   assert.equal(bom.metadata.timestamp, "2026-01-01T00:00:00.000Z");
   assert.ok(bom.components.length >= 2, "expected direct + transitive components");
 
-  const names = bom.components.map((c) => c.name).sort();
+  const names = bom.components.map((c: SbomComponent) => c.name).sort();
   assert.deepEqual(names, ["left-pad", "ms"]);
-  for (const c of bom.components) {
+  for (const c of bom.components as SbomComponent[]) {
     assert.equal(c.type, "library");
     assert.ok(c.purl.startsWith("pkg:npm/"));
     assert.ok(c.version);
     assert.ok(c["bom-ref"]);
   }
   // Deterministic ordering by purl
-  const purls = bom.components.map((c) => c.purl);
+  const purls = bom.components.map((c: SbomComponent) => c.purl);
   assert.deepEqual(purls, [...purls].sort());
 });
 
@@ -83,7 +94,7 @@ test("regression: scoped package names encode into valid purls", () => {
       },
     },
   });
-  const c = bom.components[0];
+  const c = bom.components[0] as SbomComponent;
   assert.equal(c.name, "@scope/pkg");
   assert.match(c.purl, /^pkg:npm\/%40scope\/pkg@9\.9\.9$/);
   assert.ok(c.hashes?.[0]?.alg === "SHA-512");
