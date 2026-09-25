@@ -39,6 +39,8 @@ import {
   VERDICT_RETRY_SUFFIX,
 } from "../../lib/verdict-parser";
 
+import { extractJson } from "../../lib/llm";
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /**
@@ -663,7 +665,7 @@ test("regression: LLM emits two JSON objects — first has no verdict => missing
   // This is not a silent wrong settlement; it is an explicit missing-verdict error.
   const r = parseVerdictText(
     '{"reasoning":"creator wins"} {"verdict":"CHALLENGERS_WIN","confidence":60,"explanation":"Actually challengers."}',
-    stubExtract,
+    extractJson,
   );
   assert.equal(r.ok, false);
   // The reasoning object has no verdict field.

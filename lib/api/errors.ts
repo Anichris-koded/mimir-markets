@@ -31,9 +31,11 @@ export type ApiErrorCode =
   | "agent_paused"
   // ── 404/409 ──
   | "not_found"
+  | "feature_disabled"
   | "conflict"
   // ── 429: slow down ──
   | "rate_limited"
+  | "claim_moderation_rate_limited"
   | "budget_exhausted"
   // ── 5xx and upstream ──
   | "upstream_unavailable"
@@ -70,9 +72,13 @@ const SPECS: Record<ApiErrorCode, ErrorSpec> = {
   agent_paused: { status: 403, retryable: true, retryAfterSeconds: 300 },
 
   not_found: { status: 404, retryable: false },
+  feature_disabled: { status: 404, retryable: false },
   conflict: { status: 409, retryable: false },
 
   rate_limited: { status: 429, retryable: true, retryAfterSeconds: 60 },
+  // Moderation-specific rate limit: a shorter, named code so clients can react
+  // differently from generic API rate limits.
+  claim_moderation_rate_limited: { status: 429, retryable: true, retryAfterSeconds: 35 },
   // A budget refills on a window boundary, so it is retryable but not soon.
   budget_exhausted: { status: 429, retryable: true, retryAfterSeconds: 3_600 },
 

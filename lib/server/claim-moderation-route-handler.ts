@@ -71,7 +71,7 @@ export async function handleClaimModerationPost(args: {
   moderateClaim: (input: { input: ClaimModerationInput; locale: string }) => Promise<ClaimModerationResult>;
 }) {
   if (process.env.NEXT_PUBLIC_FEATURE_CLAIM_MODERATION !== "1") {
-    const err = apiError("not_found", "Claim moderation is not enabled");
+    const err = apiError("feature_disabled", "Claim moderation is not enabled");
     return NextResponse.json(err.body, { status: err.status, headers: err.headers });
   }
 
@@ -88,7 +88,7 @@ export async function handleClaimModerationPost(args: {
     const cooldownMs = getGlobalCooldownMs();
     if (cooldownMs > 0) {
       const seconds = Math.max(1, Math.ceil(cooldownMs / 1000));
-      const err = apiError("rate_limited", `Moderation is rate-limited. Retry in ${seconds}s.`, { retryAfterSeconds: seconds });
+      const err = apiError("claim_moderation_rate_limited", `Moderation is rate-limited. Retry in ${seconds}s.`, { retryAfterSeconds: seconds });
       return NextResponse.json(err.body, { status: err.status, headers: err.headers });
     }
 
