@@ -59,16 +59,20 @@ pub fn resolve_claim_versioned(
     storage::oracle(env)?.require_auth();
 
     let mut claim = storage::get_claim(env, claim_id)?;
-    if claim.state == ClaimState::Resolved {
-        if claim.winner_side == winner_side
-            && claim.resolution_summary == summary
-            && claim.confidence == confidence
-            && claim.evidence_hash == Some(evidence_hash.clone())
-        {
-            return Ok(());
-        }
-    }
     if claim.state != ClaimState::Active {
+        if claim.state == ClaimState::Resolved {
+            // Decode the new verdict first so we can compare it against what is
+            // already stored.  An unknown version on a re-submit is still an
+            // error; we must not silently accept it as idempotent.
+            let winner_side = verdict.decode()?;
+            if claim.winner_side == winner_side
+                && claim.resolution_summary == summary
+                && claim.confidence == confidence
+                && claim.evidence_hash == Some(evidence_hash.clone())
+            {
+                return Ok(());
+            }
+        }
         return Err(Error::ClaimNotActive);
     }
     if env.ledger().timestamp() < claim.deadline {
